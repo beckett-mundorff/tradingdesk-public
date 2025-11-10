@@ -73,6 +73,8 @@ class KalshiSocialClient:
             "nickname": nickname,
             "limit": min(limit, 100),
             "closed_positions": str(closed_positions).lower(),
+            # current date time as milliseconds - 10
+            "v": int(time.time() * 1000) - 10,
         }
         
         if cursor:
