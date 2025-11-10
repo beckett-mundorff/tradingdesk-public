@@ -389,6 +389,73 @@ Bot has been stopped."""
         except Exception as e:
             self.logger(f"[TELEGRAM ERROR] Shutdown message failed: {e}")
 
+    def send_kalshi_startup_message(
+        self, num_traders: int, poll_interval: int, trader_list: list
+    ):
+        """
+        Send Kalshi startup notification.
+
+        Args:
+            num_traders: Number of traders being monitored
+            poll_interval: Poll interval in seconds
+            trader_list: List of tuples (name, min_position) for each trader
+        """
+        if not self.enabled:
+            return
+
+        # Format trader list with min_position info
+        trader_lines = []
+        for name, min_position in trader_list:
+            name_safe = escape_markdown(name)
+            if min_position:
+                trader_lines.append(f"- {name_safe} (min: {min_position:,} contracts)")
+            else:
+                trader_lines.append(f"- {name_safe}")
+
+        trader_list_formatted = "\n".join(trader_lines)
+
+        message = f"""*[KALSHI MONITOR STARTED]*
+
+*Status:* Online and monitoring
+*Traders:* {num_traders}
+*Poll Interval:* {poll_interval}s
+
+*Watching:*
+{trader_list_formatted}
+
+Ready to alert on position changes!"""
+
+        try:
+            self.send_message(message)
+            self.logger("[OK] Startup message sent to Telegram")
+        except Exception as e:
+            self.logger(f"[TELEGRAM ERROR] Startup message failed: {e}")
+
+    def send_kalshi_shutdown_message(self, uptime_seconds: int, total_alerts: int):
+        """Send Kalshi shutdown notification."""
+        if not self.enabled:
+            return
+
+        hours, remainder = divmod(uptime_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        uptime_str = (
+            f"{hours}h {minutes}m {seconds}s" if hours > 0 else f"{minutes}m {seconds}s"
+        )
+
+        message = f"""*[KALSHI MONITOR STOPPED]*
+
+*Status:* Offline
+*Uptime:* {uptime_str}
+*Total Alerts:* {total_alerts}
+
+Bot has been stopped."""
+
+        try:
+            self.send_message(message)
+            self.logger("[OK] Shutdown message sent to Telegram")
+        except Exception as e:
+            self.logger(f"[TELEGRAM ERROR] Shutdown message failed: {e}")
+
     def get_state_for_persistence(self) -> Dict:
         """
         Export message tracking state for external persistence.
