@@ -13,6 +13,12 @@ from dataclasses import dataclass, asdict
 from collections import deque
 
 import aiohttp
+import ssl
+
+try:
+    import certifi  # type: ignore
+except Exception:
+    certifi = None
 from dotenv import load_dotenv
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes, serialization
@@ -126,6 +132,11 @@ class AsyncKalshiClient:
             enable_cleanup_closed=True,
             force_close=False,
             keepalive_timeout=KEEPALIVE_TIMEOUT,
+            # Configure SSL using certifi bundle when available to avoid
+            # platform-specific missing CA issues (macOS Python builds).
+            ssl=ssl.create_default_context(cafile=certifi.where())
+            if certifi
+            else None,
         )
 
         timeout = aiohttp.ClientTimeout(

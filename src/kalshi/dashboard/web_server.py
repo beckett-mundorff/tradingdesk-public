@@ -51,12 +51,20 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
         self.connection_metadata: Dict[WebSocket, Dict] = {}
-        self._lock = asyncio.Lock()
+        # Do not create asyncio primitives at import time — create lazily
+        # because uvloop may raise if there is no current event loop yet.
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        """Return the asyncio Lock, creating it when first needed (in an event loop)."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def connect(self, websocket: WebSocket) -> None:
         """Add a new connection"""
         await websocket.accept()
-        async with self._lock:
+        async with self._get_lock():
             self.active_connections.add(websocket)
             self.connection_metadata[websocket] = {
                 "connected_at": time.time(),
@@ -67,7 +75,7 @@ class ConnectionManager:
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """Remove connection and clean up subscriptions"""
-        async with self._lock:
+        async with self._get_lock():
             self.active_connections.discard(websocket)
             self.connection_metadata.pop(websocket, None)
 
@@ -127,7 +135,14 @@ class MarketDataService:
         self.client = client
         self.update_subscribers: Dict[str, Set[WebSocket]] = {}
         self._update_task: Optional[asyncio.Task] = None
-        self._lock = asyncio.Lock()
+        # Create lock lazily to avoid creating asyncio primitives at import time
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        """Return the asyncio Lock, creating it when first needed (in an event loop)."""
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def start_updates(self):
         """Start background market updates"""
@@ -148,7 +163,7 @@ class MarketDataService:
             try:
                 await asyncio.sleep(MARKET_UPDATE_INTERVAL)
 
-                async with self._lock:
+                async with self._get_lock():
                     tickers = list(self.update_subscribers.keys())
 
                 if tickers:
@@ -156,7 +171,7 @@ class MarketDataService:
 
                     for ticker, data in market_updates.items():
                         if data:
-                            async with self._lock:
+                            async with self._get_lock():
                                 if ticker not in self.update_subscribers:
                                     continue
                                 subscribers = self.update_subscribers[ticker].copy()
@@ -180,7 +195,7 @@ class MarketDataService:
                                     failed_connections.append(ws)
 
                             if failed_connections:
-                                async with self._lock:
+                                async with self._get_lock():
                                     if ticker in self.update_subscribers:
                                         for ws in failed_connections:
                                             self.update_subscribers[ticker].discard(ws)
@@ -191,14 +206,14 @@ class MarketDataService:
 
     async def subscribe_to_market(self, websocket: WebSocket, ticker: str):
         """Subscribe WebSocket to market updates"""
-        async with self._lock:
+        async with self._get_lock():
             if ticker not in self.update_subscribers:
                 self.update_subscribers[ticker] = set()
             self.update_subscribers[ticker].add(websocket)
 
     async def unsubscribe_from_market(self, websocket: WebSocket, ticker: str):
         """Unsubscribe WebSocket from market updates"""
-        async with self._lock:
+        async with self._get_lock():
             if ticker in self.update_subscribers:
                 self.update_subscribers[ticker].discard(websocket)
                 if not self.update_subscribers[ticker]:
@@ -206,7 +221,7 @@ class MarketDataService:
 
     async def unsubscribe_all(self, websocket: WebSocket):
         """Unsubscribe WebSocket from all markets"""
-        async with self._lock:
+        async with self._get_lock():
             tickers_to_clean = []
             for ticker, subscribers in self.update_subscribers.items():
                 if websocket in subscribers:
