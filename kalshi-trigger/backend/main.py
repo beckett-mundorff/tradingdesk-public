@@ -10,7 +10,7 @@ from typing import Optional
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -27,7 +27,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Config from .env ──────────────────────────────────────────────
 TRIGGER_SECRET   = os.getenv("TRIGGER_SECRET", "change-me")
 KALSHI_KEY_ID    = os.getenv("KALSHI_API_KEY_ID", "")
 KALSHI_KEY_PATH  = os.getenv("KALSHI_PRIVATE_KEY_PATH", "kalshi_private_key.pem")
@@ -92,6 +91,32 @@ async def trigger(
     if x_api_key != TRIGGER_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    market   = ticker or DEFAULT_MARKET_TICKER
-    bet_side = side or DEFAULT_SIDE
-    bet_count = cou
+    market    = ticker or DEFAULT_MARKET_TICKER
+    bet_side  = side or DEFAULT_SIDE
+    bet_count = count or DEFAULT_COUNT
+
+    if not market:
+        raise HTTPException(status_code=400, detail="No market ticker configured")
+
+    fired_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        result = await place_kalshi_order(market, bet_side, bet_count)
+        entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "ok", "order": result}
+    except Exception as e:
+        entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "error", "error": str(e)}
+
+    trigger_log.append(entry)
+    return entry
+
+
+@app.get("/log")
+async def get_log(x_api_key: Optional[str] = Header(None)):
+    if x_api_key != TRIGGER_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return trigger_log[-50:]
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "time": datetime.now(timezone.utc).isoformat()}
