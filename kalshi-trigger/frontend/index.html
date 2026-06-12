@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Trigger</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --green: #00ff88;
+      --green-dim: #00ff8822;
+      --red: #ff3b3b;
+      --red-dim: #ff3b3b22;
+      --text: #ffffff;
+      --muted: #555555;
+      --font-mono: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 28px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.live { background: var(--green); animation: pulse 1.4s ease-in-out infinite; }
+    .dot.error { background: var(--red); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .market-info { text-align: center; }
+    .market-ticker { font-size: 13px; color: var(--muted); letter-spacing: 0.15em; margin-bottom: 6px; }
+    .market-label { font-size: 18px; font-weight: 700; letter-spacing: 0.05em; color: var(--text); }
+
+    /* Two buttons side by side */
+    .buttons-row {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-ring {
+      position: absolute;
+      width: 175px; height: 175px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      transition: border-color 0.2s;
+      pointer-events: none;
+    }
+
+    .fire-btn {
+      width: 145px; height: 145px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* YES button */
+    .fire-btn.yes:active,
+    .fire-btn.yes.firing { background: var(--green-dim); border-color: var(--green); }
+    .fire-btn.yes.success { background: var(--green-dim); border-color: var(--green); }
+    .fire-btn.yes.fail { background: var(--red-dim); border-color: var(--red); }
+    .btn-ring.yes.success { border-color: var(--green); }
+    .btn-ring.yes.fail { border-color: var(--red); }
+
+    /* NO button */
+    .fire-btn.no { border-color: #333; }
+    .fire-btn.no:active,
+    .fire-btn.no.firing { background: var(--red-dim); border-color: var(--red); }
+    .fire-btn.no.success { background: var(--red-dim); border-color: var(--red); }
+    .fire-btn.no.fail { background: var(--green-dim); border-color: var(--green); }
+    .btn-ring.no { border-color: #1a1a1a; }
+    .btn-ring.no.success { border-color: var(--red); }
+
+    .btn-label { display: block; font-size: 14px; letter-spacing: 0.25em; }
+    .btn-side { display: block; font-size: 18px; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 2px; }
+    .btn-side.yes-label { color: var(--green); }
+    .btn-side.no-label { color: var(--red); }
+    .btn-sub { display: block; font-size: 8px; color: var(--muted); letter-spacing: 0.15em; margin-top: 4px; }
+
+    /* Log */
+    .log { width: 100%; max-width: 340px; }
+    .log-title { font-size: 9px; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; }
+    .log-entries { display: flex; flex-direction: column; gap: 6px; max-height: 110px; overflow-y: auto; }
+
+    .log-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--muted);
+      animation: slideIn 0.2s ease;
+    }
+    .log-entry .time { color: var(--text); }
+    .log-entry .ok-yes { color: var(--green); }
+    .log-entry .ok-no { color: var(--red); }
+    .log-entry .err { color: #888; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Config */
+    .config { width: 100%; max-width: 340px; }
+    .config-title { font-size: 9px; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; }
+    .config-row { display: flex; gap: 8px; margin-bottom: 8px; }
+
+    .config-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .config-input:focus { border-color: var(--green); }
+    .config-input::placeholder { color: var(--muted); }
+
+    .toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 20px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.ok-yes { border-color: var(--green); color: var(--green); }
+    .toast.ok-no { border-color: var(--red); color: var(--red); }
+    .toast.err { border-color: #888; color: #888; }
+  </style>
+</head>
+<body>
+
+  <div class="status-bar">
+    <div class="dot live" id="statusDot"></div>
+    <span id="statusText">READY</span>
+  </div>
+
+  <div class="market-info">
+    <div class="market-ticker" id="marketDisplay">—</div>
+    <div class="market-label" id="marketLabel">SET TICKER BELOW</div>
+  </div>
+
+  <div class="buttons-row">
+    <!-- YES -->
+    <div class="btn-wrap">
+      <div class="btn-ring yes" id="ringYes"></div>
+      <button class="fire-btn yes" id="btnYes" onclick="fire('yes')">
+        <span class="btn-side yes-label">YES</span>
+        <span class="btn-label">FIRE</span>
+        <span class="btn-sub" id="subYes">TAP TO BET</span>
+      </button>
+    </div>
+
+    <!-- NO -->
+    <div class="btn-wrap">
+      <div class="btn-ring no" id="ringNo"></div>
+      <button class="fire-btn no" id="btnNo" onclick="fire('no')">
+        <span class="btn-side no-label">NO</span>
+        <span class="btn-label">FIRE</span>
+        <span class="btn-sub" id="subNo">TAP TO BET</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="log">
+    <div class="log-title">Recent Triggers</div>
+    <div class="log-entries" id="logEntries">
+      <div class="log-entry" style="justify-content:center;"><span>no triggers yet</span></div>
+    </div>
+  </div>
+
+  <div class="config">
+    <div class="config-title">Config</div>
+    <div class="config-row">
+      <input class="config-input" id="apiUrl" placeholder="https://pm-tradingdesk.onrender.com" />
+    </div>
+    <div class="config-row">
+      <input class="config-input" id="apiKey" placeholder="trigger secret key" type="password" />
+    </div>
+    <div class="config-row">
+      <input class="config-input" id="ticker" placeholder="market ticker" />
+      <input class="config-input" id="count" placeholder="qty" style="width:60px;flex:none;" value="1" />
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let firing = false;
+    let triggerHistory = [];
+
+    document.getElementById('ticker').addEventListener('input', updateDisplay);
+
+    function updateDisplay() {
+      const t = document.getElementById('ticker').value.trim();
+      document.getElementById('marketDisplay').textContent = t || '—';
+      document.getElementById('marketLabel').textContent = t ? 'READY TO FIRE' : 'SET TICKER BELOW';
+    }
+
+    const saved = localStorage.getItem('kalshi-trigger-config');
+    if (saved) {
+      const c = JSON.parse(saved);
+      document.getElementById('apiUrl').value = c.url || '';
+      document.getElementById('apiKey').value = c.key || '';
+      document.getElementById('ticker').value = c.ticker || '';
+      document.getElementById('count').value = c.count || '1';
+      updateDisplay();
+    }
+
+    ['apiUrl','apiKey','ticker','count'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        localStorage.setItem('kalshi-trigger-config', JSON.stringify({
+          url: document.getElementById('apiUrl').value,
+          key: document.getElementById('apiKey').value,
+          ticker: document.getElementById('ticker').value,
+          count: document.getElementById('count').value,
+        }));
+      });
+    });
+
+    function showToast(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast show ${type}`;
+      setTimeout(() => { t.className = 'toast'; }, 2500);
+    }
+
+    function addLog(time, side, status, detail) {
+      triggerHistory.unshift({ time, side, status, detail });
+      if (triggerHistory.length > 10) triggerHistory.pop();
+      document.getElementById('logEntries').innerHTML = triggerHistory.map(e => `
+        <div class="log-entry">
+          <span class="time">${e.time}</span>
+          <span class="${e.status === 'ok' ? (e.side === 'yes' ? 'ok-yes' : 'ok-no') : 'err'}">${e.side.toUpperCase()} ${e.status.toUpperCase()}</span>
+          <span>${e.detail}</span>
+        </div>
+      `).join('');
+    }
+
+    async function fire(side) {
+      if (firing) return;
+
+      const url    = document.getElementById('apiUrl').value.trim().replace(/\/$/, '');
+      const key    = document.getElementById('apiKey').value.trim();
+      const ticker = document.getElementById('ticker').value.trim();
+      const count  = parseInt(document.getElementById('count').value) || 1;
+
+      if (!url || !key) { showToast('Set API URL and key first', 'err'); return; }
+
+      firing = true;
+      const btn  = document.getElementById(side === 'yes' ? 'btnYes' : 'btnNo');
+      const ring = document.getElementById(side === 'yes' ? 'ringYes' : 'ringNo');
+      const sub  = document.getElementById(side === 'yes' ? 'subYes' : 'subNo');
+
+      btn.classList.add('firing');
+      sub.textContent = 'SENDING...';
+      document.getElementById('statusDot').className = 'dot';
+      document.getElementById('statusText').textContent = 'FIRING';
+
+      const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      try {
+        const params = new URLSearchParams({ side, count });
+        if (ticker) params.append('ticker', ticker);
+
+        const resp = await fetch(`${url}/trigger?${params}`, {
+          method: 'POST',
+          headers: { 'x-api-key': key },
+        });
+
+        if (resp.ok) {
+          btn.classList.remove('firing');
+          btn.classList.add('success');
+          ring.classList.add('success');
+          sub.textContent = 'PLACED ✓';
+          document.getElementById('statusDot').className = 'dot live';
+          document.getElementById('statusText').textContent = 'FIRED';
+          showToast(`${side.toUpperCase()} order placed`, side === 'yes' ? 'ok-yes' : 'ok-no');
+          addLog(now, side, 'ok', ticker || '—');
+        } else {
+          throw new Error(`${resp.status}`);
+        }
+      } catch(e) {
+        btn.classList.remove('firing');
+        btn.classList.add('fail');
+        sub.textContent = 'FAILED';
+        document.getElementById('statusDot').className = 'dot error';
+        document.getElementById('statusText').textContent = 'ERROR';
+        showToast(`Failed: ${e.message}`, 'err');
+        addLog(now, side, 'err', e.message);
+      }
+
+      setTimeout(() => {
+        firing = false;
+        btn.classList.remove('success', 'fail', 'firing');
+        ring.classList.remove('success', 'fail');
+        sub.textContent = 'TAP TO BET';
+        document.getElementById('statusDot').className = 'dot live';
+        document.getElementById('statusText').textContent = 'READY';
+      }, 1800);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'KeyY') fire('yes');
+      if (e.code === 'KeyN') fire('no');
+    });
+  </script>
+</body>
+</html>
