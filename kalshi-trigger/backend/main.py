@@ -109,7 +109,10 @@ async def trigger(
         result = await place_kalshi_order(market, bet_side, bet_count)
         entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "ok", "order": result}
     except Exception as e:
-        entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "error", "error": str(e)}
+    import traceback
+    print(f"KALSHI ERROR: {str(e)}")
+    print(traceback.format_exc())
+    entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "error", "error": str(e)}
 
     trigger_log.append(entry)
     return entry
