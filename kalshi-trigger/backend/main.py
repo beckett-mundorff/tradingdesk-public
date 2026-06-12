@@ -38,8 +38,9 @@ trigger_log = []
 
 def _load_private_key():
     if KALSHI_KEY_CONTENTS:
+        key_str = KALSHI_KEY_CONTENTS.replace("\\n", "\n")
         return serialization.load_pem_private_key(
-            KALSHI_KEY_CONTENTS.encode(), password=None
+            key_str.encode(), password=None
         )
     with open(KALSHI_KEY_PATH, "rb") as f:
         return serialization.load_pem_private_key(f.read(), password=None)
@@ -53,7 +54,7 @@ def _kalshi_headers(method: str, path: str) -> dict:
         msg.encode(),
         padding.PSS(
             mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.DIGEST_LENGTH
+            salt_length=padding.PSS.MAX_LENGTH
         ),
         hashes.SHA256()
     )
