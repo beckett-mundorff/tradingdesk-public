@@ -41,6 +41,11 @@ trigger_log = []
 
 
 def _load_private_key():
+    key_contents = os.getenv("KALSHI_PRIVATE_KEY_CONTENTS")
+    if key_contents:
+        return serialization.load_pem_private_key(
+            key_contents.encode(), password=None
+        )
     with open(KALSHI_KEY_PATH, "rb") as f:
         return serialization.load_pem_private_key(f.read(), password=None)
 
