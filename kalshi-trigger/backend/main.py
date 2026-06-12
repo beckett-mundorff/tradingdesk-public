@@ -28,7 +28,7 @@ TRIGGER_SECRET        = os.getenv("TRIGGER_SECRET", "change-me")
 KALSHI_KEY_ID         = os.getenv("KALSHI_API_KEY_ID", "")
 KALSHI_KEY_PATH       = os.getenv("KALSHI_PRIVATE_KEY_PATH", "kalshi_private_key.pem")
 KALSHI_KEY_CONTENTS   = os.getenv("KALSHI_PRIVATE_KEY_CONTENTS", "")
-KALSHI_BASE_URL       = os.getenv("KALSHI_BASE_URL", "https://trading-api.kalshi.com/trade-api/v2")
+KALSHI_BASE_URL       = os.getenv("KALSHI_BASE_URL", "https://api.elections.kalshi.com/trade-api/v2")
 DEFAULT_MARKET_TICKER = os.getenv("KALSHI_MARKET_TICKER", "")
 DEFAULT_SIDE          = os.getenv("KALSHI_SIDE", "yes")
 DEFAULT_COUNT         = int(os.getenv("KALSHI_COUNT", "1"))
@@ -49,7 +49,14 @@ def _kalshi_headers(method: str, path: str) -> dict:
     ts = str(int(time.time() * 1000))
     msg = ts + method.upper() + path
     key = _load_private_key()
-    sig = key.sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())
+    sig = key.sign(
+        msg.encode(),
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.DIGEST_LENGTH
+        ),
+        hashes.SHA256()
+    )
     sig_b64 = base64.b64encode(sig).decode()
     return {
         "KALSHI-ACCESS-KEY": KALSHI_KEY_ID,
