@@ -2,8 +2,7 @@ import os
 import time
 import uuid
 import base64
-import hashlib
-import json
+import traceback
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -12,8 +11,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,24 +24,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-TRIGGER_SECRET   = os.getenv("TRIGGER_SECRET", "change-me")
-KALSHI_KEY_ID    = os.getenv("KALSHI_API_KEY_ID", "")
-KALSHI_KEY_PATH  = os.getenv("KALSHI_PRIVATE_KEY_PATH", "kalshi_private_key.pem")
-KALSHI_BASE_URL  = os.getenv("KALSHI_BASE_URL", "https://trading-api.kalshi.com/trade-api/v2")
-
+TRIGGER_SECRET        = os.getenv("TRIGGER_SECRET", "change-me")
+KALSHI_KEY_ID         = os.getenv("KALSHI_API_KEY_ID", "")
+KALSHI_KEY_PATH       = os.getenv("KALSHI_PRIVATE_KEY_PATH", "kalshi_private_key.pem")
+KALSHI_KEY_CONTENTS   = os.getenv("KALSHI_PRIVATE_KEY_CONTENTS", "")
+KALSHI_BASE_URL       = os.getenv("KALSHI_BASE_URL", "https://trading-api.kalshi.com/trade-api/v2")
 DEFAULT_MARKET_TICKER = os.getenv("KALSHI_MARKET_TICKER", "")
 DEFAULT_SIDE          = os.getenv("KALSHI_SIDE", "yes")
 DEFAULT_COUNT         = int(os.getenv("KALSHI_COUNT", "1"))
-DEFAULT_ORDER_TYPE    = "market"
 
 trigger_log = []
 
 
 def _load_private_key():
-    key_contents = os.getenv("KALSHI_PRIVATE_KEY_CONTENTS")
-    if key_contents:
+    if KALSHI_KEY_CONTENTS:
         return serialization.load_pem_private_key(
-            key_contents.encode(), password=None
+            KALSHI_KEY_CONTENTS.encode(), password=None
         )
     with open(KALSHI_KEY_PATH, "rb") as f:
         return serialization.load_pem_private_key(f.read(), password=None)
@@ -70,7 +65,7 @@ async def place_kalshi_order(ticker: str, side: str, count: int) -> dict:
         "ticker": ticker,
         "action": "buy",
         "side": side,
-        "type": DEFAULT_ORDER_TYPE,
+        "type": "market",
         "count": count,
         "client_order_id": str(uuid.uuid4()),
     }
@@ -82,6 +77,7 @@ async def place_kalshi_order(ticker: str, side: str, count: int) -> dict:
             json=body,
             timeout=10,
         )
+        print(f"KALSHI RESPONSE: {resp.status_code} {resp.text}")
         resp.raise_for_status()
         return resp.json()
 
@@ -109,10 +105,9 @@ async def trigger(
         result = await place_kalshi_order(market, bet_side, bet_count)
         entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "ok", "order": result}
     except Exception as e:
-    import traceback
-    print(f"KALSHI ERROR: {str(e)}")
-    print(traceback.format_exc())
-    entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "error", "error": str(e)}
+        print(f"KALSHI ERROR: {str(e)}")
+        print(traceback.format_exc())
+        entry = {"fired_at": fired_at, "market": market, "side": bet_side, "count": bet_count, "status": "error", "error": str(e)}
 
     trigger_log.append(entry)
     return entry
