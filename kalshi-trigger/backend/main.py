@@ -67,14 +67,30 @@ def _kalshi_headers(method: str, path: str) -> dict:
     }
 
 
+async def get_market_price(ticker: str, side: str) -> int:
+    path = f"/markets/{ticker}"
+    headers = _kalshi_headers("GET", path)
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(KALSHI_BASE_URL + path, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        market = data.get("market", {})
+        if side == "yes":
+            return market.get("yes_ask", 99)
+        else:
+            return market.get("no_ask", 99)
+
+
 async def place_kalshi_order(ticker: str, side: str, count: int) -> dict:
+    price = await get_market_price(ticker, side)
     path = "/portfolio/orders"
     body = {
         "ticker": ticker,
         "action": "buy",
         "side": side,
-        "type": "market",
+        "type": "limit",
         "count": count,
+        "yes_price" if side == "yes" else "no_price": price,
         "client_order_id": str(uuid.uuid4()),
     }
     headers = _kalshi_headers("POST", path)
