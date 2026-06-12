@@ -48,13 +48,13 @@ def _load_private_key():
 
 def _kalshi_headers(method: str, path: str) -> dict:
     ts = str(int(time.time() * 1000))
-    msg = ts + method.upper() + path
+    msg = ts + method.upper() + "/trade-api/v2" + path
     key = _load_private_key()
     sig = key.sign(
         msg.encode(),
         padding.PSS(
             mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
+            salt_length=32
         ),
         hashes.SHA256()
     )
