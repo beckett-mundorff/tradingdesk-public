@@ -15,7 +15,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
-import uvloop
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -39,7 +38,6 @@ from src.kalshi.tools.generate_hotkeys import (
     save_hotkeys_config,
 )
 
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -1014,6 +1012,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         log_level="warning",
-        loop="uvloop",
         access_log=False,
     )
